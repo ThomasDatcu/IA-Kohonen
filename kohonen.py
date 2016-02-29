@@ -26,8 +26,11 @@ def neighborhood(pos_bmu,shape,width):
     @type width: float
     @return: La fonction de voisinage pour chaque unité de la SOM (numpy.array)
     '''
+    X,Y = numpy.ogrid[0:shape[0],0:shape[1]]
+    X -= pos_bmu[0]
+    Y -= pos_bmu[1]
     # TODO
-    return None
+    return formu
 
 def distance(proto,inp):
     '''
@@ -39,6 +42,9 @@ def distance(proto,inp):
     @return: La distance entre l'entrée courante et le prototype pour chaque unité de la SOM (numpy.array)
     '''
     # TODO
+    return numpy.sqrt(numpy.sum(numpy.sum((proto-inp[numpy.newaxis,numpy.newaxis,:,:])**2,axis=2),axis=2))
+
+    
     return None
 
 class SOM:
@@ -95,6 +101,10 @@ class SOM:
             # Entrée courante
             self.inp[:,:] = train_samples['input'][n]
             # Mise à jour des poids (utiliser les fonctions neighborhood et distance)
+            d=  distance(self.weigths, self.inp)
+            bmu = numpy.argmin(d)
+            v = neightborhodo(numpy.unravel_index(bmu,self.shape[1]),slef.shape[1],width)
+            self.weights = self.weights + lrate*v[:,:,numpy.newaxis,numpy.newaxis]*(self.inp[numpy.newaxis,numpy.newaxis,:,:]-slef.weights)
             self.reset() # TODO à supprimer, juste mis pour que les poids changent sur l'affichage
             # TODO
             # Sortie correspondant à l'entrée courante
