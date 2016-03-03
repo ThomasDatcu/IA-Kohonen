@@ -26,6 +26,23 @@ def neighborhood(pos_bmu,shape,width):
     @type width: float
     @return: La fonction de voisinage pour chaque unité de la SOM (numpy.array)
     '''
+
+    '''
+    On cherche à calculer ici la fonction de voisinage pour chaque neuronne.
+    On prend une fonction gaussienne, ce qui nous donne la fonctione de
+    voisinage pour *un* neuronne suivante :
+    V(ij, ij*) = exp(-(||ij - ij*||)/(2*sigma**2))
+    avec ij* les coordonnées du neuronne gagnant et sigma un paramètre constant.
+    Sur le même principe que sur la fonction de distance entre Wij et X, on va
+    calculer toutes les distance grâce à une seule opération de matrice en
+    répliquant k,l fois les coordonnées ij.
+    On construit X et Y de telle sorte que pour tout k,l :
+        X[k,l] = i
+        Y[k,l] = j
+    On obtient donc la formule suivante:
+        V = exp(-(X**2+Y**2)/2*sigma**2)
+    '''
+
     X,Y = numpy.ogrid[0:shape[0],0:shape[1]]
     X -= pos_bmu[0]
     Y -= pos_bmu[1]
@@ -39,8 +56,34 @@ def distance(proto,inp):
     @param input: Entrée courante
     @type input: numpy.array
     @return: La distance entre l'entrée courante et le prototype pour chaque unité de la SOM (numpy.array)
+
     '''
-    return numpy.sqrt(numpy.sum(numpy.sum((proto-inp[numpy.newaxis,numpy.newaxis,:])**2,axis=2),axis=2))
+
+    '''
+    Soit proto ( alias W ) la matrice des poids de dimension de la
+    dimension de l'entrée fois la dimention de l'ensemble des neuronnes.
+    Ici, W est de dimension 4, soit W[i,j,k,l] avec :
+        - i,j les coordonnées d'un neuronne dans une matrice des neuronnes
+        - k,l les coordonnées d'une composante de l'entrée de dimension 2
+    Soit inp ( alias X ) la matrice d'entrée (ici de dimension 2), soit X[k,l]
+    La formule du calcul de la distance euclidienne entre Wij et X est la
+    suivante : ||Wij - X|| = sqrt(sum((Wij-X)**2)) // Avec sum -> somme sur k,l
+    Pour pouvoir calculer la distance pour tous les neuronnes à la fois (et
+    donc se débarrasser des boucles sur i et j), on copie l'entrée pour
+    chaque neuronne.
+    On construit donc une telle matrice de telle sorte que, pour chaque i,j
+        Y[i,j] = X
+    La formule de calcul de distance pour *tous les neuronnes* est donc :
+        ||W - Y|| = sqrt(sum((W-Y)**2)) // Avec sum -> somme sur k,l
+    '''
+    k = 2
+    l = 2
+    W = proto
+    Y = inp[numpy.newaxis,numpy.newaxis,:]
+    C = (W - Y)**2
+    B = numpy.sum(C,axis=k)
+    A = numpy.sum(B,axis=l)
+    return numpy.sqrt(A)
 
 class SOM:
     ''' Classe implémentant une carte de Kohonen. '''
@@ -63,7 +106,7 @@ class SOM:
         self.reset()
 
     def reset(self):
-        ''' 
+        '''
         @summary: Initialisation des poids entre -1 et 1
         '''
         self.weights = numpy.random.random(self.shape[1]+self.shape[0])*2.-1.
@@ -113,7 +156,7 @@ class SOM:
         if verbose:
             # Désactivation du mode interactif
             plt.ioff()
-                
+
     def test(self,test_samples,verbose=True):
         '''
         @summary: Test du modèle
@@ -160,7 +203,7 @@ class SOM:
         # Affichage de la figure
         if not interactive:
             plt.show()
-  
+
     def plot(self):
         '''
         Affichage des poids du réseau (matrice des poids)
@@ -204,12 +247,12 @@ if __name__ == '__main__':
     test_output[numpy.where(numpy.logical_and(test_input[:,0]>0,test_input[:,1]<0))] = 3.
     test_output[numpy.where(numpy.logical_and(test_input[:,0]>0,test_input[:,1]>0))] = 4.
     test = {'input':test_input,'output':test_output}
-    
+
     # Pour les données mnist (faire attention où est situé le fichier)
 #    data = cPickle.load(gzip.open('mnist.pkl.gz'))
 #    train = {'input':data[0][0].reshape(56000,28,28),'output':numpy.argmax(data[0][1],axis=1)}
 #    test = {'input':data[2][0].reshape(7000,28,28),'output':numpy.argmax(data[2][1],axis=1)}
-    
+
     # Initialisation du réseau
     network.reset()
     # Performance du réseau avant apprentissage
@@ -230,4 +273,3 @@ if __name__ == '__main__':
     network.scatter_plot()
     # Affichage des poids du réseau
 #    network.plot()
-
