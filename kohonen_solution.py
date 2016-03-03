@@ -26,8 +26,10 @@ def neighborhood(pos_bmu,shape,width):
     @type width: float
     @return: La fonction de voisinage pour chaque unité de la SOM (numpy.array)
     '''
-    # TODO
-    return None
+    X,Y = numpy.ogrid[0:shape[0],0:shape[1]]
+    X -= pos_bmu[0]
+    Y -= pos_bmu[1]
+    return numpy.exp(-(X**2+Y**2)/(2.*width**2))
 
 def distance(proto,inp):
     '''
@@ -38,8 +40,7 @@ def distance(proto,inp):
     @type input: numpy.array
     @return: La distance entre l'entrée courante et le prototype pour chaque unité de la SOM (numpy.array)
     '''
-    # TODO
-    return None
+    return numpy.sqrt(numpy.sum(numpy.sum((proto-inp[numpy.newaxis,numpy.newaxis,:])**2,axis=2),axis=2))
 
 class SOM:
     ''' Classe implémentant une carte de Kohonen. '''
@@ -50,19 +51,19 @@ class SOM:
         @param args: Liste de taille des couches
         @type args: tuple
         '''
-        # Taille des couches ((s1,...,sn),(i1,...,im)) si la SOM fait s1*...*sn et l'entrée fait i1*...*im
+        # Taille des couches
         self.shape = args
-        # Label associé à chaque unité de la carte (array de taille (s1,...,sn))
+        # Label associé à chaque unité de la carte
         self.labeling = numpy.empty(self.shape[1])
-        # Entrée de la carte (array de taille (i1,...,im))
+        # Entrée de la carte
         self.inp = numpy.empty(self.shape[0])
-        # Poids de la carte (prototypes) (array de taille (s1,...,sn,i1,...,im))
+        # Poids de la carte (prototypes)
         self.weights = numpy.empty(self.shape[1]+self.shape[0])
         # Initialisation des poids
         self.reset()
 
     def reset(self):
-        '''
+        ''' 
         @summary: Initialisation des poids entre -1 et 1
         '''
         self.weights = numpy.random.random(self.shape[1]+self.shape[0])*2.-1.
@@ -89,20 +90,19 @@ class SOM:
             plt.ion()
             # Affichage de la figure
             plt.show()
-        for i in range(1,epochs+1):
+        for i in range(epochs):
             # Choix d'un exemple aléatoire
             n = numpy.random.randint(train_samples['input'].shape[0])
-            # Entrée courante
             self.inp[:,:] = train_samples['input'][n]
             # Mise à jour des poids (utiliser les fonctions neighborhood et distance)
-            self.reset() # TODO à supprimer, juste mis pour que les poids changent sur l'affichage
-            # TODO
-            # Sortie correspondant à l'entrée courante
-            output = train_samples['output'][n]
+            d = distance(self.weights, self.inp)
+            bmu = numpy.argmin(d)
+            v = neighborhood(numpy.unravel_index(bmu,self.shape[1]),self.shape[1],width)
+            self.weights = self.weights + lrate*v[:,:,numpy.newaxis,numpy.newaxis]*(self.inp[numpy.newaxis,numpy.newaxis,:,:]-self.weights)
             # Apprentissage de la labelisation (avec la méthode de votre choix)
-            # TODO
+            output = train_samples['output'][n]
             # Mise à jour de l'affichage
-            if verbose and i%1000==0:
+            if verbose and i%100==0:
                 # Effacement du contenu de la figure
                 plt.clf()
                 # Remplissage de la figure
@@ -113,32 +113,32 @@ class SOM:
         if verbose:
             # Désactivation du mode interactif
             plt.ioff()
-
-    def test(self,test_samples,verbose=False):
+                
+    def test(self,test_samples,verbose=True):
         '''
-        @summary: Test du modèle (classification)
+        @summary: Test du modèle
         @param test_samples: Ensemble des données de test
         @type test_samples: dictionnaire ('input' est un numpy.array qui contient l'ensemble des vecteurs d'entrées, 'output' est un numpy.array qui contient l'ensemble des vecteurs de sortie correspondants)
-        @param verbose: Indique si l'affichage est activé (False par défaut)
+        @param verbose: Indique si l'affichage est activé
         @type verbose: boolean
         '''
-        # Nombre d'erreurs de classification
+        # Erreur quadratique moyenne
         error = 0.
         for i in range(test_samples['input'].shape[0]):
             # Calcul du label correspondant à l'exemple de test courant
-            label = 0 # TODO à supprimer, juste mis pour que le programme tourne
+            label = 0
             # TODO
-            # Augmentation du nombre d'erreur si le max de la sortie ne correspond pas à la catégorie attendue
-            error += 0. if label==test_samples['output'][i][0] else 1.
+            # Mise à jour de l'erreur quadratique moyenne
+            error += numpy.sum((label-test_samples['output'][i])**2)
             # Affichage des résultats
             if verbose:
-              print 'entrée', test_samples['input'][i], 'sortie ', label, '(attendue)', test_samples['output'][i][0]
-        # Affichage du pourcentage d'erreurs de classification
-        print 'erreur de classification ',error/test_samples['input'].shape[0]*100.,'%'
+              print 'entree', test_samples['input'][i], 'sortie %.2f' % label, '(attendue %.2f)' % test_samples['output'][i]
+        # Affichage de l'erreur quadratique moyenne
+        print 'erreur quadratique moyenne ',error/test_samples['input'].shape[0]
 
     def scatter_plot(self,interactive=False):
         '''
-        Affichage du réseau dans l'espace d'entrée (utilisable dans le cas d'entrée à deux dimensions et d'une carte avec une topologie de grille)
+        Affichage du réseau dans l'espace d'entrée (dans le cas d'entrée à deux dimensions et d'une carte avec une topologie de grille)
         @param interactive: Indique si l'affichage se fait en mode interactif
         @type interactive: boolean
         '''
@@ -160,20 +160,20 @@ class SOM:
         # Affichage de la figure
         if not interactive:
             plt.show()
-
+  
     def plot(self):
         '''
         Affichage des poids du réseau (matrice des poids)
         '''
         # Création de la figure
         plt.figure()
-        # Récupération des poids
+        # Récupération et redimensionnement de la matrice de poids
         w = self.weights
         # Affichage des poids dans un sous graphique (suivant sa position de la SOM)
         for i in xrange(w.shape[0]):
             for j in xrange(w.shape[1]):
                 plt.subplot(w.shape[0],w.shape[1],i*w.shape[1]+j+1)
-                plt.imshow(w[i,j],interpolation='nearest',vmin=-1,vmax=1,cmap='binary')
+                plt.imshow(w[i,j,:],interpolation='nearest',vmin=-1,vmax=1,cmap='binary')
                 plt.xticks([])
                 plt.yticks([])
         # Affichage de la figure
@@ -186,51 +186,48 @@ if __name__ == '__main__':
     network = SOM((2,1),(10,10))
     # Exemple 1 :
     # -------------------------------------------------------------------------
-    # Création des données d'apprentissage bidimensionnelles
+    # Création des données d'apprentissage
     n = 1000
     train_input = numpy.random.random((n,2,1))*2.-1.
     train_output = numpy.empty((n,1))
-    train_output[numpy.where(numpy.logical_and(train_input[:,0]<0,train_input[:,1]<0))] = 1
-    train_output[numpy.where(numpy.logical_and(train_input[:,0]<0,train_input[:,1]>0))] = 2
-    train_output[numpy.where(numpy.logical_and(train_input[:,0]>0,train_input[:,1]<0))] = 3
-    train_output[numpy.where(numpy.logical_and(train_input[:,0]>0,train_input[:,1]>0))] = 4
+    train_output[numpy.where(numpy.logical_and(train_input[:,0]<0,train_input[:,1]<0))] = 1.
+    train_output[numpy.where(numpy.logical_and(train_input[:,0]<0,train_input[:,1]>0))] = 2.
+    train_output[numpy.where(numpy.logical_and(train_input[:,0]>0,train_input[:,1]<0))] = 3.
+    train_output[numpy.where(numpy.logical_and(train_input[:,0]>0,train_input[:,1]>0))] = 4.
     train = {'input':train_input,'output':train_output}
-    # Création des données de test bidimensionnelles
+    # Création des données de test
     n = 100
     test_input = numpy.random.random((n,2,1))*2.-1.
     test_output = numpy.empty((n,1))
-    test_output[numpy.where(numpy.logical_and(test_input[:,0]<0,test_input[:,1]<0))] = 1
-    test_output[numpy.where(numpy.logical_and(test_input[:,0]<0,test_input[:,1]>0))] = 2
-    test_output[numpy.where(numpy.logical_and(test_input[:,0]>0,test_input[:,1]<0))] = 3
-    test_output[numpy.where(numpy.logical_and(test_input[:,0]>0,test_input[:,1]>0))] = 4
+    test_output[numpy.where(numpy.logical_and(test_input[:,0]<0,test_input[:,1]<0))] = 1.
+    test_output[numpy.where(numpy.logical_and(test_input[:,0]<0,test_input[:,1]>0))] = 2.
+    test_output[numpy.where(numpy.logical_and(test_input[:,0]>0,test_input[:,1]<0))] = 3.
+    test_output[numpy.where(numpy.logical_and(test_input[:,0]>0,test_input[:,1]>0))] = 4.
     test = {'input':test_input,'output':test_output}
-
-    # TODO Pour les données mnist
-    # ATTENTION À: la localisation du fichier, la taille du réseau, les affichages scatter_plot à supprimer
+    
+    # Pour les données mnist (faire attention où est situé le fichier)
 #    data = cPickle.load(gzip.open('mnist.pkl.gz'))
 #    train = {'input':data[0][0].reshape(56000,28,28),'output':numpy.argmax(data[0][1],axis=1)}
 #    test = {'input':data[2][0].reshape(7000,28,28),'output':numpy.argmax(data[2][1],axis=1)}
-
+    
     # Initialisation du réseau
     network.reset()
     # Performance du réseau avant apprentissage
-    # TODO NB Uniquement pertinent si la labelisation est faite
+    # NB Uniquement pertinent si la labelisation est faite
     print "Avant apprentissage"
-    network.test(test,False)
+#    network.test(test,False)
     # Affichage du réseau dans l'espace d'entrée (puisqu'il est à deux dimensions)
-    # TODO NB Uniquement pertinent dans le cas d'entrées à deux dimensions
     network.scatter_plot()
     # Affichage des poids du réseau
-    network.plot()
+#    network.plot()
     # Apprentissage du réseau
-    # TODO NB Verbose à True uniquement pertinent dans le cas d'entrées à deux dimensions
-    network.learn(train,30000,0.05,1.,True)
+    network.learn(train,30000,0.02,1.5,True)
     # Performance du réseau après apprentissage
-    # TODO NB Uniquement pertinent si la labelisation est faite
+    # NB Uniquement pertinent si la labelisation est faite
     print "Apres apprentissage"
-    network.test(test,False)
+#    network.test(test,False)
     # Affichage du réseau dans l'espace d'entrée (puisqu'il est à deux dimensions)
-    # TODO NB Uniquement pertinent dans le cas d'entrées à deux dimensions
     network.scatter_plot()
     # Affichage des poids du réseau
-    network.plot()
+#    network.plot()
+
