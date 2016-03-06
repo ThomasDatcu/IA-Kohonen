@@ -12,6 +12,7 @@
 import numpy
 # Librairie d'affichage
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 # Pour lire les données MNIST
 import gzip, cPickle
 
@@ -64,7 +65,7 @@ def distance(proto,inp):
     dimension de l'entrée fois la dimention de l'ensemble des neuronnes.
     Ici, W est de dimension 4, soit W[i,j,k,l] avec :
         - i,j les coordonnées d'un neuronne dans une matrice des neuronnes
-        - k,l les coordonnées d'une composante de l'entrée de dimension 2
+        - k,l les coordonnées d'une composante de l'entrée
     Soit inp ( alias X ) la matrice d'entrée (ici de dimension 2), soit X[k,l]
     La formule du calcul de la distance euclidienne entre Wij et X est la
     suivante : ||Wij - X|| = sqrt(sum((Wij-X)**2)) // Avec sum -> somme sur k,l
@@ -125,6 +126,11 @@ class SOM:
         @param verbose: Indique si l'affichage est activé (utilisable uniquement avec des entrées à deux dimensions)
         @type verbose: boolean
         '''
+
+        lrate0 = lrate
+        width0 = width
+        tau = epochs / (numpy.log(width0))
+
         # Initialisation de l'affichage
         if verbose:
             # Création d'une figure
@@ -140,10 +146,17 @@ class SOM:
             # Mise à jour des poids (utiliser les fonctions neighborhood et distance)
             d = distance(self.weights, self.inp)
             bmu = numpy.argmin(d)
-            v = neighborhood(numpy.unravel_index(bmu,self.shape[1]),self.shape[1],width)
+            pos_bmu = numpy.unravel_index(bmu,self.shape[1])
+            v = neighborhood(pos_bmu,self.shape[1],width)
             self.weights = self.weights + lrate*v[:,:,numpy.newaxis,numpy.newaxis]*(self.inp[numpy.newaxis,numpy.newaxis,:,:]-self.weights)
             # Apprentissage de la labelisation (avec la méthode de votre choix)
             output = train_samples['output'][n]
+            self.labeling[pos_bmu[0],pos_bmu[1]] = output
+
+            #Modification des paramètres
+            lrate = lrate0 * numpy.exp(-i/epochs)
+            width = width0 * numpy.exp(-i/tau)
+
             # Mise à jour de l'affichage
             if verbose and i%100==0:
                 # Effacement du contenu de la figure
@@ -169,13 +182,15 @@ class SOM:
         error = 0.
         for i in range(test_samples['input'].shape[0]):
             # Calcul du label correspondant à l'exemple de test courant
-            label = 0
-            # TODO
+            d = distance(self.weights, test_samples['input'][i])
+            bmu = numpy.argmin(d)
+            pos_bmu = numpy.unravel_index(bmu,self.shape[1])
+            label = self.labeling[pos_bmu[0], pos_bmu[1]]
             # Mise à jour de l'erreur quadratique moyenne
             error += numpy.sum((label-test_samples['output'][i])**2)
             # Affichage des résultats
             if verbose:
-              print 'entree', test_samples['input'][i], 'sortie %.2f' % label, '(attendue %.2f)' % test_samples['output'][i]
+              print 'entree \n', test_samples['input'][i], '\nsortie %.2f' % label, '(attendue %.2f)' % test_samples['output'][i]
         # Affichage de l'erreur quadratique moyenne
         print 'erreur quadratique moyenne ',error/test_samples['input'].shape[0]
 
@@ -225,7 +240,11 @@ class SOM:
 
 # -----------------------------------------------------------------------------
 if __name__ == '__main__':
+
+    verbose = True
+
     # Création d'un réseau avec une entrée (2,1) et une carte (10,10)
+    #network = SOM((2,1),(10,10))
     network = SOM((2,1),(10,10))
     # Exemple 1 :
     # -------------------------------------------------------------------------
@@ -238,6 +257,7 @@ if __name__ == '__main__':
     train_output[numpy.where(numpy.logical_and(train_input[:,0]>0,train_input[:,1]<0))] = 3.
     train_output[numpy.where(numpy.logical_and(train_input[:,0]>0,train_input[:,1]>0))] = 4.
     train = {'input':train_input,'output':train_output}
+
     # Création des données de test
     n = 100
     test_input = numpy.random.random((n,2,1))*2.-1.
@@ -249,27 +269,31 @@ if __name__ == '__main__':
     test = {'input':test_input,'output':test_output}
 
     # Pour les données mnist (faire attention où est situé le fichier)
-#    data = cPickle.load(gzip.open('mnist.pkl.gz'))
-#    train = {'input':data[0][0].reshape(56000,28,28),'output':numpy.argmax(data[0][1],axis=1)}
-#    test = {'input':data[2][0].reshape(7000,28,28),'output':numpy.argmax(data[2][1],axis=1)}
+    # data = cPickle.load(open('mnist.pkl'))
+    # train = {'input':data[0][0].reshape(56000,28,28),'output':numpy.argmax(data[0][1],axis=1)}
+    # test = {'input':data[2][0].reshape(7000,28,28),'output':numpy.argmax(data[2][1],axis=1)}
 
     # Initialisation du réseau
     network.reset()
     # Performance du réseau avant apprentissage
     # NB Uniquement pertinent si la labelisation est faite
     print "Avant apprentissage"
-#    network.test(test,False)
+    network.test(test,verbose)
     # Affichage du réseau dans l'espace d'entrée (puisqu'il est à deux dimensions)
-    network.scatter_plot()
+    # network.scatter_plot()
     # Affichage des poids du réseau
-#    network.plot()
+    network.plot()
     # Apprentissage du réseau
-    network.learn(train,30000,0.02,1.5,True)
+    epochs = 15000 #30000
+    lrate = 0.35 #0.02
+    width = 4 #1.5
+
+    network.learn(train,epochs,lrate,width,verbose)
     # Performance du réseau après apprentissage
     # NB Uniquement pertinent si la labelisation est faite
     print "Apres apprentissage"
-#    network.test(test,False)
+    network.test(test,verbose)
     # Affichage du réseau dans l'espace d'entrée (puisqu'il est à deux dimensions)
-    network.scatter_plot()
+    # network.scatter_plot()
     # Affichage des poids du réseau
-#    network.plot()
+    network.plot()
