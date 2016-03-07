@@ -16,7 +16,7 @@ import matplotlib.cm as cm
 # Pour lire les données MNIST
 import gzip, cPickle
 
-def neighborhood(pos_bmu,shape,width):
+def neighborhood(pos_bmu,shape,width) :
     '''
     @summary: Fonction de voisinage
     @param pos_bmu: Position de l'unité gagnante
@@ -241,37 +241,37 @@ class SOM:
 # -----------------------------------------------------------------------------
 if __name__ == '__main__':
 
-    verbose = True
+    verbose = False
 
     # Création d'un réseau avec une entrée (2,1) et une carte (10,10)
     #network = SOM((2,1),(10,10))
-    network = SOM((2,1),(10,10))
+    network = SOM((28,28),(10,10))
     # Exemple 1 :
     # -------------------------------------------------------------------------
-    # Création des données d'apprentissage
-    n = 1000
-    train_input = numpy.random.random((n,2,1))*2.-1.
-    train_output = numpy.empty((n,1))
-    train_output[numpy.where(numpy.logical_and(train_input[:,0]<0,train_input[:,1]<0))] = 1.
-    train_output[numpy.where(numpy.logical_and(train_input[:,0]<0,train_input[:,1]>0))] = 2.
-    train_output[numpy.where(numpy.logical_and(train_input[:,0]>0,train_input[:,1]<0))] = 3.
-    train_output[numpy.where(numpy.logical_and(train_input[:,0]>0,train_input[:,1]>0))] = 4.
-    train = {'input':train_input,'output':train_output}
-
-    # Création des données de test
-    n = 100
-    test_input = numpy.random.random((n,2,1))*2.-1.
-    test_output = numpy.empty((n,1))
-    test_output[numpy.where(numpy.logical_and(test_input[:,0]<0,test_input[:,1]<0))] = 1.
-    test_output[numpy.where(numpy.logical_and(test_input[:,0]<0,test_input[:,1]>0))] = 2.
-    test_output[numpy.where(numpy.logical_and(test_input[:,0]>0,test_input[:,1]<0))] = 3.
-    test_output[numpy.where(numpy.logical_and(test_input[:,0]>0,test_input[:,1]>0))] = 4.
-    test = {'input':test_input,'output':test_output}
+    # # Création des données d'apprentissage
+    # n = 1000
+    # train_input = numpy.random.random((n,2,1))*2.-1.
+    # train_output = numpy.empty((n,1))
+    # train_output[numpy.where(numpy.logical_and(train_input[:,0]<0,train_input[:,1]<0))] = 1.
+    # train_output[numpy.where(numpy.logical_and(train_input[:,0]<0,train_input[:,1]>0))] = 2.
+    # train_output[numpy.where(numpy.logical_and(train_input[:,0]>0,train_input[:,1]<0))] = 3.
+    # train_output[numpy.where(numpy.logical_and(train_input[:,0]>0,train_input[:,1]>0))] = 4.
+    # train = {'input':train_input,'output':train_output}
+    #
+    # # Création des données de test
+    # n = 100
+    # test_input = numpy.random.random((n,2,1))*2.-1.
+    # test_output = numpy.empty((n,1))
+    # test_output[numpy.where(numpy.logical_and(test_input[:,0]<0,test_input[:,1]<0))] = 1.
+    # test_output[numpy.where(numpy.logical_and(test_input[:,0]<0,test_input[:,1]>0))] = 2.
+    # test_output[numpy.where(numpy.logical_and(test_input[:,0]>0,test_input[:,1]<0))] = 3.
+    # test_output[numpy.where(numpy.logical_and(test_input[:,0]>0,test_input[:,1]>0))] = 4.
+    # test = {'input':test_input,'output':test_output}
 
     # Pour les données mnist (faire attention où est situé le fichier)
-    # data = cPickle.load(open('mnist.pkl'))
-    # train = {'input':data[0][0].reshape(56000,28,28),'output':numpy.argmax(data[0][1],axis=1)}
-    # test = {'input':data[2][0].reshape(7000,28,28),'output':numpy.argmax(data[2][1],axis=1)}
+    data = cPickle.load(gzip.open('mnist.pkl.gz'))
+    train = {'input':data[0][0].reshape(56000,28,28),'output':numpy.argmax(data[0][1],axis=1)}
+    test = {'input':data[2][0].reshape(7000,28,28),'output':numpy.argmax(data[2][1],axis=1)}
 
     # Initialisation du réseau
     network.reset()
